@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<godata>
+    <mysql>
+        <db_url>jdbc:mysql://localhost/db_gw_server</db_url>
+        <db_user>username</db_user>
+        <db_passwd>secret</db_passwd>
+        <time_zone>UTC</time_zone>
+    </mysql>
+    <devices>
+        <device_id manufac="meh">00945301</device_id>
+        <device_id manufac="dwz">22120628</device_id>
+        <device_id manufac="dwz">22120616</device_id>
+        <device_id manufac="dwz">22072572</device_id>
+        <device_id manufac="dwz">22072565</device_id>
+    </devices>
+</godata>
