@@ -8,12 +8,12 @@ public class Manufacturer {
     /**
      * Mueller = true
      */
-    public boolean stripTwoStart = true;
+    public boolean stripTwoStart = false;
 
     /**
      * Mueller = true
      */
-    public boolean stripTwoEnd = true;
+    public boolean stripTwoEnd = false;
     public String ivMode;
     /**
      * Where the decrypted part ends in the raw
