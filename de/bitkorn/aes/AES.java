@@ -1,13 +1,19 @@
 package de.bitkorn.aes;
 
+import org.apache.commons.codec.DecoderException;
+import org.apache.commons.codec.binary.Hex;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class AES {
 
-    protected String cipherType = "AES/CBC/NoPadding";
+    protected String cipherType = "AES/CBC/NoPadding"; // AES/CBC/NoPadding
     protected Cipher cipher;
     protected String aesKey;
     protected String initVector;
@@ -41,8 +47,9 @@ public class AES {
 
     public String decrypt(String encrypted) {
         try {
-            IvParameterSpec ivSpec = new IvParameterSpec(initVector.getBytes(StandardCharsets.UTF_8));
+            IvParameterSpec ivSpec = new IvParameterSpec(initVector.getBytes()); // StandardCharsets.UTF_8
             SecretKeySpec skeySpec = new SecretKeySpec(aesKey.getBytes(StandardCharsets.UTF_8), "AES");
+//            SecretKeySpec skeySpec = new SecretKeySpec(convertStringToBinary(aesKey).getBytes(), "AES");
 
             cipher.init(Cipher.DECRYPT_MODE, skeySpec, ivSpec);
             byte[] original = cipher.doFinal(encrypted.getBytes());
@@ -89,5 +96,62 @@ public class AES {
             System.err.println(e.getMessage());
             throw new RuntimeException(e);
         }
+    }
+
+    /*
+     * https://mkyong.com/java/java-convert-string-to-binary/
+     */
+
+    public static String convertStringToBinary(String input) {
+
+        StringBuilder result = new StringBuilder();
+        char[] chars = input.toCharArray();
+        for (char aChar : chars) {
+            result.append(
+                    String.format("%8s", Integer.toBinaryString(aChar))   // char -> int, auto-cast
+                            .replaceAll(" ", "0")                         // zero pads
+            );
+        }
+        return result.toString();
+
+    }
+
+    public static String prettyBinary(String binary, int blockSize, String separator) {
+
+        List<String> result = new ArrayList<>();
+        int index = 0;
+        while (index < binary.length()) {
+            result.add(binary.substring(index, Math.min(index + blockSize, binary.length())));
+            index += blockSize;
+        }
+
+        return result.stream().collect(Collectors.joining(separator));
+    }
+
+    /*
+     * https://mkyong.com/java/how-to-convert-hex-to-ascii-in-java/
+     */
+
+    public static String convertStringToHex(String str) {
+
+        // display in uppercase
+        //char[] chars = Hex.encodeHex(str.getBytes(StandardCharsets.UTF_8), false);
+
+        // display in lowercase, default
+        char[] chars = Hex.encodeHex(str.getBytes(StandardCharsets.UTF_8));
+
+        return String.valueOf(chars);
+    }
+
+    public static String convertHexToString(String hex) {
+
+        String result = "";
+        try {
+            byte[] bytes = Hex.decodeHex(hex);
+            result = new String(bytes, StandardCharsets.UTF_8);
+        } catch (DecoderException e) {
+            throw new IllegalArgumentException("Invalid Hex format!");
+        }
+        return result;
     }
 }

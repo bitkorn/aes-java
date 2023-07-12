@@ -90,57 +90,22 @@ public class Main {
     }
 
     public static void main(String[] args) {
-        if (args.length < 1) {
-            System.out.println("Use it with device ID as parameter and optional an AES key");
+        if (args.length != 2) {
+            System.out.println("usage: java filename.jar AES_key raw");
             System.exit(1);
         }
-        String deviceId = args[0];
+        String aesKey = args[0];
+        String raw = args[1];
         logging();
-
-        DeviceTable dt = new DeviceTable();
-        DeviceEntity deviceEntity = dt.getDevice(deviceId);
-        System.out.println("Device: " + deviceEntity.getManufactureCode() + " " + deviceEntity.getId());
-        DevicesTable devicesTable = new DevicesTable(deviceEntity);
-        ArrayList<String> raws = devicesTable.getRawData();
-        /*
-         * @todo Den Manufacturer in Abhängigkeit vom Device, aus der Datenbank laden.
-         */
-        Manufacturer manufac = new Manufacturer();
-        if(args.length == 2 && args[1].length() == 32) {
-            deviceEntity.setAesKey(args[1]);
-        }
-        System.out.println("AES key: " + deviceEntity.getAesKey());
-        AES aes = new AES(deviceEntity.getAesKey());
-        for (String raw : raws) {
-            System.out.println("RAW: " + raw);
-            if (manufac.stripTwoStart) {
-                raw = raw.substring(2);
-            }
-            if (manufac.stripTwoEnd) {
-                raw = raw.substring(0, raw.length() - 2);
-            }
-            System.out.println("RAW striped: " + raw);
-
-            aes.setInitVector(manufac.computeInitVector(raw));
-            System.out.println("initVector: " + aes.initVector);
-
-//            if (manufac.rawOffset > 0) {
-//                raw = raw.substring(manufac.rawOffset);
-//            }
-//            System.out.println("RAW with offset: " + raw);
-            /*
-             * Getestet ist
-             * - der komplette RAW
-             * - der RAW minus LENGTH modulo BLOCK_LENGTH
-             * - einzelner Block
-             * @todo In Abhängigkeit vom Manufacturer in Blöcke aufteilen und bei jedem Block ein neuen IV aus dem vorigen Block bilden
-             */
-            int length = raw.length() - (raw.length() % BLOCK_LENGTH);
-            raw = raw.substring(0, length);
-            System.out.println("RAW % BLOCK_LENGTH: " + raw);
-            String decrypted = aes.decrypt(raw);
-            System.out.println("decrypted: " + decrypted);
-        }
+        handleParams(aesKey, raw);
     }
 
+    public static void handleParams(String aesKey, String raw) {
+        AES aes = new AES(aesKey);
+        Manufacturer manufac = new Manufacturer();
+        aes.setInitVector(manufac.computeInitVector(raw));
+        String decrypted = aes.decrypt(raw);
+        System.out.println("decrypted: " + decrypted);
+        System.out.println("decrypted hex: " + AES.convertStringToHex(decrypted));
+    }
 }
