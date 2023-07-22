@@ -1,4 +1,4 @@
-package de.bitkorn.entity;
+package de.bitkorn.aes.entity;
 
 import java.util.ArrayList;
 

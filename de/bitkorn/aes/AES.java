@@ -1,15 +1,8 @@
 package de.bitkorn.aes;
 
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 
 public class AES {
 
@@ -17,9 +10,12 @@ public class AES {
     protected Cipher cipher;
     protected String aesKey;
     protected String initVector;
+    public int encryptedOffset;
+    protected String encryptedString;
 
-    public AES(String aesKey) {
+    public AES(String aesKey, String initVector) {
         this.aesKey = aesKey;
+        this.initVector = initVector;
         try {
             cipher = Cipher.getInstance(cipherType);
         } catch (Exception ex) {
@@ -27,33 +23,59 @@ public class AES {
         }
     }
 
-    public void setInitVector(String initVector) {
-        this.initVector = initVector;
+    public String getInitVector() {
+        return initVector;
+    }
+
+    public void setEncryptedOffset(int encryptedOffset) {
+        this.encryptedOffset = encryptedOffset;
+    }
+
+    public void setEncryptedString(String encryptedString) {
+        this.encryptedString = subStringBlock16(removeCRCFields(encryptedString).substring(encryptedOffset));
+    }
+
+    public String getEncryptedString() {
+        return encryptedString;
+    }
+
+    protected String removeCRCFields(String hex) {
+        StringBuilder sb = new StringBuilder(hex);
+        sb.delete(106, 110);
+        sb.delete(92, 96);
+        sb.delete(56, 60);
+        sb.delete(20, 24);
+        return sb.toString();
+    }
+
+    protected String subStringBlock16(String in) {
+        int length = in.length();
+        if ((length % 16) != 0) {
+            length -= length % 16;
+        }
+        return in.substring(0, length);
     }
 
     public String encrypt(String original) {
         try {
-            IvParameterSpec ivSpec = new IvParameterSpec(initVector.getBytes(StandardCharsets.UTF_8));
-            SecretKeySpec skeySpec = new SecretKeySpec(aesKey.getBytes(StandardCharsets.UTF_8), "AES");
-
+            IvParameterSpec ivSpec = new IvParameterSpec(hexToBytes(initVector));
+            SecretKeySpec skeySpec = new SecretKeySpec(hexToBytes(aesKey), "AES");
             cipher.init(Cipher.ENCRYPT_MODE, skeySpec, ivSpec);
-            byte[] encrypted = cipher.doFinal(original.getBytes());
-            return new String(encrypted);
+            byte[] encrypted = cipher.doFinal(hexToBytes(original));
+            return bytesToHex(encrypted);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         return null;
     }
 
-    public String decrypt(String encrypted) {
+    public String decrypt() {
         try {
-            IvParameterSpec ivSpec = new IvParameterSpec(initVector.getBytes()); // StandardCharsets.UTF_8
-            SecretKeySpec skeySpec = new SecretKeySpec(aesKey.getBytes(StandardCharsets.UTF_8), "AES");
-//            SecretKeySpec skeySpec = new SecretKeySpec(convertStringToBinary(aesKey).getBytes(), "AES");
-
+            IvParameterSpec ivSpec = new IvParameterSpec(hexToBytes(initVector)); // StandardCharsets.UTF_8
+            SecretKeySpec skeySpec = new SecretKeySpec(hexToBytes(aesKey), "AES");
             cipher.init(Cipher.DECRYPT_MODE, skeySpec, ivSpec);
-            byte[] original = cipher.doFinal(encrypted.getBytes());
-            return new String(original);
+            byte[] original = cipher.doFinal(hexToBytes(encryptedString));
+            return bytesToHex(original);
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -61,97 +83,52 @@ public class AES {
         return null;
     }
 
-    private String xcrypt(int decryptMode, IvParameterSpec ivSpec, SecretKeySpec skeySpec, String data) {
-        try {
-            cipher.init(decryptMode, skeySpec, ivSpec);
-            byte[] original = cipher.doFinal(data.getBytes());
-            return new String(original);
-        } catch (Exception ex) {
-            ex.printStackTrace();
+    // convert bytes to hex string
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
         }
-        return null;
+        return new String(hexChars);
     }
 
-    /*
-     * <a href="https://gist.github.com/mythosil/1313541/2076d2f5365394190865e12e7f25cc7dfbb0466f">gist</a>
-     * ######################################
-     */
+    // convert hex string to bytes
+//    public static byte[] hexToBytes(final String hex) {
+//        if ((hex.length() % 2) != 0)
+//            throw new IllegalArgumentException("Input string must contain an even number of characters");
+//        final byte result[] = new byte[hex.length() / 2];
+//        final char enc[] = hex.toCharArray();
+//        for (int i = 0; i < enc.length; i += 2) {
+//            StringBuilder curr = new StringBuilder(2);
+//            curr.append(enc[i]).append(enc[i + 1]);
+//            result[i / 2] = (byte) Integer.parseInt(curr.toString(), 16);
+//        }
+//        return result;
+//    }
 
-    public byte[] encryptBytes(byte[] data) {
-        return processBytes(Cipher.ENCRYPT_MODE, aesKey, initVector, data);
-    }
-
-    public byte[] decryptBytes(byte[] data) {
-        return processBytes(Cipher.DECRYPT_MODE, aesKey, initVector, data);
-    }
-
-    private byte[] processBytes(int mode, String skey, String iv, byte[] data) {
-        IvParameterSpec ivSpec = new IvParameterSpec(iv.getBytes());
-        SecretKeySpec key = new SecretKeySpec(skey.getBytes(), "AES");
-        try {
-            Cipher cipher = Cipher.getInstance(cipherType);
-            cipher.init(mode, key, ivSpec);
-            return cipher.doFinal(data);
-        } catch (Exception e) {
-            System.err.println(e.getMessage());
-            throw new RuntimeException(e);
-        }
-    }
-
-    /*
-     * https://mkyong.com/java/java-convert-string-to-binary/
-     */
-
-    public static String convertStringToBinary(String input) {
-
-        StringBuilder result = new StringBuilder();
-        char[] chars = input.toCharArray();
-        for (char aChar : chars) {
-            result.append(
-                    String.format("%8s", Integer.toBinaryString(aChar))   // char -> int, auto-cast
-                            .replaceAll(" ", "0")                         // zero pads
-            );
-        }
-        return result.toString();
-
-    }
-
-    public static String prettyBinary(String binary, int blockSize, String separator) {
-
-        List<String> result = new ArrayList<>();
-        int index = 0;
-        while (index < binary.length()) {
-            result.add(binary.substring(index, Math.min(index + blockSize, binary.length())));
-            index += blockSize;
-        }
-
-        return result.stream().collect(Collectors.joining(separator));
-    }
-
-    /*
-     * https://mkyong.com/java/how-to-convert-hex-to-ascii-in-java/
-     */
-
-    public static String convertStringToHex(String str) {
-
-        // display in uppercase
-        //char[] chars = Hex.encodeHex(str.getBytes(StandardCharsets.UTF_8), false);
-
-        // display in lowercase, default
-        char[] chars = Hex.encodeHex(str.getBytes(StandardCharsets.UTF_8));
-
-        return String.valueOf(chars);
-    }
-
-    public static String convertHexToString(String hex) {
-
-        String result = "";
-        try {
-            byte[] bytes = Hex.decodeHex(hex);
-            result = new String(bytes, StandardCharsets.UTF_8);
-        } catch (DecoderException e) {
-            throw new IllegalArgumentException("Invalid Hex format!");
+    public static byte[] hexToBytes(final String hex) {
+        if ((hex.length() % 2) != 0)
+            throw new IllegalArgumentException("Input string must contain an even number of characters");
+        final byte result[] = new byte[hex.length() / 2];
+        for (int i = 0; i < result.length; i++) {
+            int index = i * 2;
+            result[i] = (byte) Integer.parseInt(hex.substring(index, index + 2), 16);
         }
         return result;
+    }
+
+    public static String hexToAscii(String hexStr) {
+        StringBuilder output = new StringBuilder("");
+
+        for (int i = 0; i < hexStr.length(); i += 2) {
+            String str = hexStr.substring(i, i + 2);
+            output.append((char) Integer.parseInt(str, 16));
+        }
+
+        return output.toString();
     }
 }

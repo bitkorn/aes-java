@@ -1,25 +1,15 @@
 package de.bitkorn.aes;
 
-import de.bitkorn.db.DeviceTable;
-import de.bitkorn.db.DevicesTable;
-import de.bitkorn.entity.DeviceEntity;
-import de.bitkorn.entity.Manufacturer;
+import de.bitkorn.aes.entity.Manufacturer;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.SimpleLayout;
-import org.jdom2.Document;
-import org.jdom2.Element;
-import org.jdom2.JDOMException;
-import org.jdom2.input.SAXBuilder;
 
 import java.io.File;
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.security.CodeSource;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Base64;
 
 /**
  * <a href="https://www.javacodegeeks.com/2018/03/aes-encryption-and-decryption-in-javacbc-mode.html">javacodegeeks.com</a>
@@ -69,26 +59,6 @@ public class Main {
         }
     }
 
-    /**
-     * @return Something like that: "jdbc:mysql://localhost/dbname?user=root&password=secret"
-     */
-    public static String parseXmlConfigForMysql() {
-        try {
-            Document doc = new SAXBuilder().build(Main.CONF_XML_FQN);
-            Element root = doc.getRootElement();
-            Element sql = root.getChild("mysql");
-            String dbUrl = sql.getChildText("db_url");
-            String dbUser = sql.getChildText("db_user");
-            String dbPasswd = sql.getChildText("db_passwd");
-            String dbTimezone = sql.getChildText("time_zone");
-            return dbUrl + "?user=" + dbUser + "&password=" + dbPasswd + "&serverTimezone=" + dbTimezone + "&useUnicode=true&useLegacyDatetimeCode=false";
-        } catch (JDOMException | IOException e) {
-            LOG4J.error(e.getMessage());
-            System.exit(1);
-        }
-        return "";
-    }
-
     public static void main(String[] args) {
         if (args.length != 2) {
             System.out.println("usage: java filename.jar AES_key raw");
@@ -101,11 +71,21 @@ public class Main {
     }
 
     public static void handleParams(String aesKey, String raw) {
-        AES aes = new AES(aesKey);
         Manufacturer manufac = new Manufacturer();
-        aes.setInitVector(manufac.computeInitVector(raw));
-        String decrypted = aes.decrypt(raw);
-        System.out.println("decrypted: " + decrypted);
-        System.out.println("decrypted hex: " + AES.convertStringToHex(decrypted));
+        manufac.setRaw(raw);
+        AES aes = new AES(aesKey, manufac.computeInitVector());
+        System.out.println("key: " + aesKey);
+        System.out.println("raw: " + raw);
+        System.out.println("IV: " + aes.getInitVector());
+        System.out.println("L-Field: " + manufac.getLField());
+        System.out.println("C-Field: " + manufac.getCField());
+        System.out.println("M-Field: " + manufac.getMField());
+        System.out.println("A-Field: " + manufac.getAField());
+        System.out.println("CI-Field: " + manufac.getCIField());
+        System.out.println("Access NO (IV pad): " + manufac.getAccessNo());
+        aes.setEncryptedOffset(manufac.getEncOffset());
+        aes.setEncryptedString(raw);
+        System.out.println("encrypted: " + aes.getEncryptedString());
+        System.out.println("decrypted: " + aes.decrypt());
     }
 }

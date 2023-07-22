@@ -1,6 +1,6 @@
-package de.bitkorn.db;
+package de.bitkorn.aes.db;
 
-import de.bitkorn.entity.DeviceEntity;
+import de.bitkorn.aes.entity.DeviceEntity;
 import org.apache.log4j.Logger;
 
 import java.sql.Connection;
